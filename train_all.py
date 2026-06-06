@@ -65,7 +65,7 @@ class VehicleDataset(Dataset):
 
         if self.augment:
             # 对重点类别增加更多增强变体
-            if label in ['white', 'silver']:
+            if label in ['white', 'silver', 'black']:
                 num_variants = 6
             elif label in ['brown', 'red', 'bus']:
                 num_variants = 5
@@ -205,8 +205,9 @@ def train_model(task, image_paths, labels, classes, epochs=50, batch_size=16, lr
     if task == 'color':
         class_weights['brown'] = class_weights.get('brown', 1.0) * 3.0  # brown 重点加强
         class_weights['red'] = class_weights.get('red', 1.0) * 2.5  # red 加强
-        class_weights['silver'] = class_weights.get('silver', 1.0) * 1.5
+        class_weights['silver'] = class_weights.get('silver', 1.0) * 3.0  # silver 重点加强（解决与white混淆）
         class_weights['white'] = class_weights.get('white', 1.0) * 2.0
+        class_weights['black'] = class_weights.get('black', 1.0) * 2.0  # black 加强（解决与blue混淆）
         class_weights['blue'] = class_weights.get('blue', 1.0) * 1.5
     elif task == 'type':
         class_weights['bus'] = class_weights.get('bus', 1.0) * 2.0  # bus 重点加强
