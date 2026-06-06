@@ -24,10 +24,10 @@ class Config:
     DATABASE_PATH = os.environ.get('DATABASE_PATH', 'data/records.db')
     VEHICLE_CSV = os.environ.get('VEHICLE_CSV', 'vehicle-database.csv')
 
-    # 模型路径
-    YOLO_MODEL_PATH = os.environ.get('YOLO_MODEL_PATH', 'cfg/best.pt')
-    VEHICLE_TYPE_MODEL_PATH = os.environ.get('TYPE_MODEL_PATH', 'cfg/vehicle_type.pth')
-    VEHICLE_COLOR_MODEL_PATH = os.environ.get('COLOR_MODEL_PATH', 'cfg/vehicle_color.pth')
+    # 模型路径（默认放到 weights/ 目录，支持环境变量覆盖）
+    YOLO_MODEL_PATH = os.environ.get('YOLO_MODEL_PATH', 'weights/best.pt')
+    VEHICLE_TYPE_MODEL_PATH = os.environ.get('TYPE_MODEL_PATH', 'weights/vehicle_type.pth')
+    VEHICLE_COLOR_MODEL_PATH = os.environ.get('COLOR_MODEL_PATH', 'weights/vehicle_color.pth')
 
     # 推理参数
     YOLO_CONF = float(os.environ.get('YOLO_CONF', 0.25))      # YOLO 置信度阈值

@@ -48,11 +48,36 @@ def get_device():
     return torch.device(Config.DEVICE)
 
 
+def _check_model_files():
+    """检查模型文件是否存在，缺失时给出清晰提示"""
+    missing = []
+    for name, path in [
+        ("YOLO 检测模型", Config.YOLO_MODEL_PATH),
+        ("车型分类模型", Config.VEHICLE_TYPE_MODEL_PATH),
+        ("颜色分类模型", Config.VEHICLE_COLOR_MODEL_PATH),
+    ]:
+        if not os.path.exists(path):
+            missing.append((name, path))
+    if missing:
+        msg_lines = ["[ERROR] 以下模型文件缺失，请先下载模型权重:"]
+        for name, path in missing:
+            msg_lines.append(f"  - {name}: {path}")
+        msg_lines.append("")
+        msg_lines.append("下载方式:")
+        msg_lines.append("  1) 运行脚本: bash download_model.sh")
+        msg_lines.append("  2) 手动下载: 见 README.md -> 模型下载")
+        msg_lines.append("  3) 从原项目 cfg/ 目录复制到 weights/")
+        raise FileNotFoundError("\n".join(msg_lines))
+
+
 def load_models(force_reload=False):
     """加载所有模型（线程安全，只加载一次）"""
     global _models
     if _models and not force_reload:
         return _models
+
+    # 先检查模型文件是否存在
+    _check_model_files()
 
     device = get_device()
     print(f"[INFERENCE] 加载模型到设备: {device}")
