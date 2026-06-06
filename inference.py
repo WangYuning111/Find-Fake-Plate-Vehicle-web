@@ -188,13 +188,16 @@ def detect_vehicle(img, models):
 
 
 def classify_crop(crop, models, full_img=None, bbox=None):
-    """对车辆裁剪图进行车型和颜色分类"""
+    """对车辆进行车型和颜色分类"""
     aap = models['aap']
     iap = models['iap']
     device = models['device']
 
-    # 车型 (保持 MiniVGGNet)
-    type_roi = aap.preprocess(crop)
+    # 使用全图进行分类（与训练时输入一致）
+    classify_img = full_img if full_img is not None else crop
+
+    # 车型 (MiniVGGNet，输入全图)
+    type_roi = aap.preprocess(classify_img)
     type_tensor = iap.preprocess(type_roi).unsqueeze(0).to(device)
     with torch.no_grad():
         type_output = models['type_model'](type_tensor)
@@ -202,12 +205,14 @@ def classify_crop(crop, models, full_img=None, bbox=None):
     v_type = models['type_classes'][int(np.argmax(type_probs))]
     type_conf = float(np.max(type_probs))
 
-    # 颜色 (改用 HSV 色彩空间分析，无需训练，更准确)
-    from color_classifier import classify_color_with_crop
-    if full_img is not None:
-        v_color, _, color_conf = classify_color_with_crop(full_img, bbox)
-    else:
-        v_color, _, color_conf = classify_color_with_crop(crop)
+    # 颜色 (MiniVGGNet，输入全图)
+    color_roi = aap.preprocess(classify_img)
+    color_tensor = iap.preprocess(color_roi).unsqueeze(0).to(device)
+    with torch.no_grad():
+        color_output = models['color_model'](color_tensor)
+        color_probs = torch.softmax(color_output, dim=1)[0].cpu().numpy()
+    v_color = models['color_classes'][int(np.argmax(color_probs))]
+    color_conf = float(np.max(color_probs))
 
     return v_type, type_conf, v_color, color_conf
 

@@ -12,18 +12,19 @@ import numpy as np
 # HSV 颜色范围定义 (H: 0-179, S: 0-255, V: 0-255)
 # 格式: [(name, lower, upper, priority), ...]
 # priority 越高，该颜色在重叠区域越有优先权
+# 修正: 黑色 V 上限严格限制，棕色/黄色范围扩大
 COLOR_RANGES = [
-    ("white",   np.array([0,   0,   200]), np.array([179, 30,  255]), 5),
-    ("silver",  np.array([0,   0,   140]), np.array([179, 30,  199]), 4),
-    ("gray",    np.array([0,   0,   60]),  np.array([179, 40,  139]), 3),
-    ("black",   np.array([0,   0,   0]),   np.array([179, 255, 80]),  6),
-    ("red1",    np.array([0,   50,  50]),  np.array([10,  255, 255]), 6),
-    ("red2",    np.array([160, 50,  50]),  np.array([179, 255, 255]), 6),
-    ("orange",  np.array([11,  50,  50]),  np.array([25,  255, 255]), 5),
-    ("yellow",  np.array([26,  50,  50]),  np.array([35,  255, 255]), 5),
-    ("green",   np.array([36,  50,  50]),  np.array([85,  255, 255]), 5),
-    ("blue",    np.array([86,  50,  50]),  np.array([125, 255, 255]), 5),
-    ("brown",   np.array([10,  40,  30]),  np.array([30,  180, 120]), 3),
+    ("white",   np.array([0,   0,   190]), np.array([179, 35,  255]), 6),
+    ("silver",  np.array([0,   0,   130]), np.array([179, 40,  189]), 5),
+    ("gray",    np.array([0,   0,   50]),  np.array([179, 50,  129]), 4),
+    ("black",   np.array([0,   0,   0]),   np.array([179, 255, 50]),  7),
+    ("red1",    np.array([0,   40,  40]),  np.array([12,  255, 255]), 6),
+    ("red2",    np.array([160, 40,  40]),  np.array([179, 255, 255]), 6),
+    ("orange",  np.array([8,   40,  40]),  np.array([22,  255, 255]), 5),
+    ("yellow",  np.array([20,  40,  40]),  np.array([38,  255, 255]), 6),
+    ("green",   np.array([35,  40,  40]),  np.array([90,  255, 255]), 5),
+    ("blue",    np.array([85,  40,  40]),  np.array([130, 255, 255]), 5),
+    ("brown",   np.array([0,   25,  20]),  np.array([40,  200, 140]), 5),
 ]
 
 # 中文映射
@@ -102,25 +103,20 @@ def classify_color_hsv(image_bgr, region_of_interest=None):
             color_votes[base_name] = 0
         color_votes[base_name] += score
 
-    # ========== 黑色 vs 深蓝 智能区分 ==========
-    # 统计暗色像素 (V < 90) 在车身区域中的占比和饱和度
-    dark_mask = (small[:, :, 2] < 90) & (small[:, :, 2] > 15)  # V在15-90之间
-    dark_pixels = np.count_nonzero(dark_mask)
+    # ========== 暗色区域二次确认 ==========
+    # 统计真正黑色像素 (V < 40) 的占比，避免把棕色/红色阴影误判为黑色
+    true_black_mask = (small[:, :, 2] < 40) & (small[:, :, 2] > 5)
+    true_black_pixels = np.count_nonzero(true_black_mask)
 
-    if dark_pixels > 0 and body_pixels > 0:
-        dark_ratio = dark_pixels / body_pixels
-        sat_in_dark = small[:, :, 1][dark_mask]
-        avg_sat_dark = np.mean(sat_in_dark)
-
-        # 暗色像素占比高且平均饱和度低 -> 黑色车身
-        if dark_ratio > 0.20 and avg_sat_dark < 90:
-            # 强黑色信号，大幅提升黑色得分
-            boost = int(body_pixels * 0.6)
+    if true_black_pixels > 0 and body_pixels > 0:
+        black_ratio = true_black_pixels / body_pixels
+        # 只有当真正黑色像素占比超过 15% 时才认为是黑色车身
+        if black_ratio > 0.15:
+            boost = int(body_pixels * 0.5)
             color_votes["black"] = color_votes.get("black", 0) + boost
-        # 暗色像素占比高但饱和度高 -> 可能是深蓝
-        elif dark_ratio > 0.20 and avg_sat_dark >= 120:
-            boost = int(body_pixels * 0.3)
-            color_votes["blue"] = color_votes.get("blue", 0) + boost
+        # 否则抑制黑色得分（防止阴影干扰）
+        else:
+            color_votes["black"] = max(0, color_votes.get("black", 0) - int(body_pixels * 0.2))
 
     if not color_votes or body_pixels < 50:
         return "unknown", "未知", 0.0

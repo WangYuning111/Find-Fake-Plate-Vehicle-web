@@ -11,11 +11,12 @@ from ultralytics import YOLO
 from conv import MiniVGGNet
 from preprocessing import AspectAwarePreprocessor, ImageToTensorPreprocessor, SimplePreprocessor
 from hyperlpr import HyperLPR_plate_recognition as plateRecog
+from color_classifier import classify_color_with_crop
 
 
 ALLOWED_EXTENSIONS = set(['png', 'jpg', 'JPG', 'PNG', 'bmp'])
 cwd_path = os.getcwd()
-yolov12_model_path = 'cfg/best.pt'
+yolov12_model_path = 'weights/best.pt'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 yolov12_model = YOLO(yolov12_model_path)  # 加载YOLOv12模型
@@ -23,13 +24,13 @@ print(f"[MODEL] YOLO classes: {yolov12_model.names}")
 
 # 加载车辆类型分类模型
 v_type_model = MiniVGGNet(100, 100, 3, 4).to(device)
-v_type_model.load_state_dict(torch.load("cfg/vehicle_type.pth", map_location=device))
+v_type_model.load_state_dict(torch.load("weights/vehicle_type.pth", map_location=device))
 v_type_model.eval()
 v_type_classes = ["bus", "car", "minibus", "truck"]
 
 # 加载车辆颜色分类模型
 v_color_model = MiniVGGNet(100, 100, 3, 8).to(device)
-v_color_model.load_state_dict(torch.load("cfg/vehicle_color.pth", map_location=device))
+v_color_model.load_state_dict(torch.load("weights/vehicle_color.pth", map_location=device))
 v_color_model.eval()
 v_color_classes = ["black", "blue", "brown", "green", "red", "silver", "white", "yellow"]
 
@@ -142,15 +143,16 @@ def predict(imgPath, vehicle_info_database):
     v_type_label = max(v_type_result, key=v_type_result.get)
     print(f"[INFO] Type prediction: {v_type_label}")
 
-    # 使用车辆颜色模型进行预测
-    color_roi = aap_color.preprocess(crop_image)
+    # 使用训练好的 MiniVGGNet 模型进行颜色分类（与训练输入一致，使用全图）
+    color_roi = aap_color.preprocess(original_image)
     color_tensor = iap.preprocess(color_roi).unsqueeze(0).to(device)
     with torch.no_grad():
         color_output = v_color_model(color_tensor)
         color_probs = torch.softmax(color_output, dim=1)[0].cpu().numpy()
     v_color_result = dict(zip(v_color_classes, color_probs))
     v_color_label = max(v_color_result, key=v_color_result.get)
-    print(f"[INFO] Color prediction: {v_color_label}")
+    color_conf = float(v_color_result[v_color_label])
+    print(f"[INFO] MiniVGGNet color prediction: {v_color_label}, conf={color_conf:.2%}")
 
     # 识别车牌 - 尝试多种策略，优先使用高分辨率图像
     plateInfo = None
@@ -256,9 +258,12 @@ def analyze():
             f"车辆品牌: {car_brand}",
             f"判定结果: {predict_result}"
         ]
-        return render_template('index.html', context=context, val1=time.time())
+        stats = {'total': 0, 'fake_count': 0, 'today': 0}
+        return render_template('index.html', context=context, val1=time.time(), stats=stats)
 
-    return render_template('index.html')
+    # GET 请求也需要 stats 变量
+    stats = {'total': 0, 'fake_count': 0, 'today': 0}
+    return render_template('index.html', stats=stats)
 
 
 if __name__ == '__main__':
