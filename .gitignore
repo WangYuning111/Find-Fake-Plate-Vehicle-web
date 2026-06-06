@@ -25,3 +25,8 @@ static/images/*.bmp
 test.jpg
 test_blue.jpg
 test_red.jpg
+
+# 模型权重文件（大文件，不推送到Git）
+*.pth
+*.pt
+*.onnx
