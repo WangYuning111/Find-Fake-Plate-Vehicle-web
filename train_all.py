@@ -64,8 +64,9 @@ class VehicleDataset(Dataset):
             img = np.zeros((100, 100, 3), dtype=np.uint8)
 
         if self.augment:
-            # 随机数据增强（生成2个变体，增加数据多样性）
-            aug_imgs = augment_image(img, num_variants=2)
+            # 对重点类别增加更多增强变体
+            num_variants = 4 if label in ['brown', 'bus'] else 2
+            aug_imgs = augment_image(img, num_variants=num_variants)
             img = aug_imgs[-1] if len(aug_imgs) > 1 else img
 
         roi = self.aap.preprocess(img)
@@ -172,7 +173,7 @@ def load_local_data(src_dir, task='type'):
     return image_paths, labels, classes
 
 
-def train_model(task, image_paths, labels, classes, epochs=30, batch_size=16, lr=0.001):
+def train_model(task, image_paths, labels, classes, epochs=50, batch_size=16, lr=0.001):
     """训练模型"""
     num_classes = len(classes)
     print(f"[TRAIN] 开始训练 {task} 分类模型，类别数: {num_classes}")
@@ -182,11 +183,43 @@ def train_model(task, image_paths, labels, classes, epochs=30, batch_size=16, lr
         image_paths, labels, test_size=0.2, random_state=42, stratify=labels
     )
 
+    # 统计各类别数量，计算类别权重（解决类别不平衡）
+    from collections import Counter
+    label_counts = Counter(labels)
+    print(f"[TRAIN] 类别分布: {dict(label_counts)}")
+    
+    # 计算权重: 总样本数 / (类别数 * 该类样本数)
+    total = len(labels)
+    n_classes = len(classes)
+    class_weights = {}
+    for cls in classes:
+        count = label_counts.get(cls, 1)
+        class_weights[cls] = total / (n_classes * count)
+    
+    # 对重点改进类别增加额外权重
+    if task == 'color':
+        class_weights['brown'] = class_weights.get('brown', 1.0) * 3.0  # brown 重点加强
+        class_weights['silver'] = class_weights.get('silver', 1.0) * 4.0  # silver 重点加强
+        class_weights['white'] = class_weights.get('white', 1.0) * 2.0  # white 加强区分
+        class_weights['blue'] = class_weights.get('blue', 1.0) * 1.5
+    elif task == 'type':
+        class_weights['bus'] = class_weights.get('bus', 1.0) * 2.0  # bus 重点加强
+    
+    print(f"[TRAIN] 类别权重: {class_weights}")
+    
+    # 为每个样本分配权重
+    sample_weights = [class_weights.get(l, 1.0) for l in train_labels]
+    sampler = torch.utils.data.WeightedRandomSampler(
+        weights=sample_weights, 
+        num_samples=len(sample_weights),
+        replacement=True
+    )
+
     # 数据集
     train_dataset = VehicleDataset(train_paths, train_labels, classes, augment=True)
     val_dataset = VehicleDataset(val_paths, val_labels, classes, augment=False)
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=sampler, num_workers=0)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
 
     # 模型
@@ -212,7 +245,9 @@ def train_model(task, image_paths, labels, classes, epochs=30, batch_size=16, lr
         except Exception as e:
             print(f"[TRAIN] 预训练权重加载失败: {e}，将从头训练")
 
-    criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
+    # 使用类别权重构建损失函数
+    weight_tensor = torch.tensor([class_weights.get(c, 1.0) for c in classes], dtype=torch.float32).to(DEVICE)
+    criterion = nn.CrossEntropyLoss(weight=weight_tensor, label_smoothing=0.1)
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=5)
 

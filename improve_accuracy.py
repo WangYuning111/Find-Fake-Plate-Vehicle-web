@@ -145,9 +145,9 @@ def augment_image(img, num_variants=3):
     for _ in range(num_variants):
         aug = img.copy()
 
-        # 随机亮度
-        alpha = np.random.uniform(0.7, 1.3)
-        beta = np.random.randint(-30, 30)
+        # 随机亮度（范围加大）
+        alpha = np.random.uniform(0.6, 1.4)
+        beta = np.random.randint(-40, 40)
         aug = cv2.convertScaleAbs(aug, alpha=alpha, beta=beta)
 
         # 随机水平翻转 (50% 概率)
@@ -159,16 +159,25 @@ def augment_image(img, num_variants=3):
         aug = cv2.add(aug, noise)
 
         # 随机轻微旋转
-        angle = np.random.uniform(-8, 8)
+        angle = np.random.uniform(-10, 10)
         M = cv2.getRotationMatrix2D((w / 2, h / 2), angle, 1.0)
         aug = cv2.warpAffine(aug, M, (w, h), borderValue=(128, 128, 128))
 
-        # 随机饱和度/色调微调 (HSV)
+        # 随机饱和度/色调微调 (HSV) - 范围加大
         hsv = cv2.cvtColor(aug, cv2.COLOR_BGR2HSV).astype(np.float32)
-        hsv[:, :, 1] *= np.random.uniform(0.8, 1.2)
-        hsv[:, :, 2] *= np.random.uniform(0.8, 1.2)
+        hsv[:, :, 1] *= np.random.uniform(0.7, 1.3)
+        hsv[:, :, 2] *= np.random.uniform(0.7, 1.3)
         hsv = np.clip(hsv, 0, 255).astype(np.uint8)
         aug = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+
+        # 随机裁剪再resize（模拟不同距离）
+        if np.random.random() > 0.5:
+            crop_ratio = np.random.uniform(0.85, 0.98)
+            new_h, new_w = int(h * crop_ratio), int(w * crop_ratio)
+            y_off = np.random.randint(0, h - new_h + 1)
+            x_off = np.random.randint(0, w - new_w + 1)
+            aug = aug[y_off:y_off+new_h, x_off:x_off+new_w]
+            aug = cv2.resize(aug, (w, h))
 
         aug_imgs.append(aug)
 
