@@ -1,18 +1,19 @@
 #!/usr/bin/env bash
 # ============================================================
-# 模型权重一键下载脚本
+# 模型权重一键获取脚本
+# 优先级: 1) 本地 cfg/ 复制  2) GitHub Release 下载
 # 支持: wget / curl
-# 来源: GitHub Release / HuggingFace / ModelScope
 # ============================================================
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WEIGHTS_DIR="${SCRIPT_DIR}/weights"
+CFG_DIR="${SCRIPT_DIR}/cfg"
 mkdir -p "${WEIGHTS_DIR}"
 
 echo "=========================================="
-echo "  套牌车检测系统 - 模型权重下载"
+echo "  套牌车检测系统 - 模型权重获取"
 echo "=========================================="
 
 # 下载函数：优先 wget，备选 curl
@@ -25,39 +26,52 @@ download_file() {
         curl -L --progress-bar -o "${output}" "${url}"
     else
         echo "错误: 未找到 wget 或 curl，请手动下载"
-        exit 1
+        return 1
     fi
 }
 
-# --------------------------------------------------
 # 模型文件列表
-# 默认使用 GitHub Release 直链（Release 上传后替换为实际链接）
-# 备选: HuggingFace / ModelScope / 百度网盘
-# --------------------------------------------------
-
-# GitHub Release 占位链接（请替换为实际 Release 附件地址）
-BASE_URL="https://github.com/WangYuning111/Find-Fake-Plate-Vehicle-web2/releases/download/v1.0.0"
-
-# 各模型文件
 MODELS=(
     "best.pt"
     "vehicle_type.pth"
     "vehicle_color.pth"
 )
 
-# 下载每个模型
+# GitHub Release 直链（创建 Release 后自动生效）
+BASE_URL="https://github.com/WangYuning111/Find-Fake-Plate-Vehicle-web2/releases/download/v1.0.0"
+
+all_ok=true
 for model in "${MODELS[@]}"; do
     dest="${WEIGHTS_DIR}/${model}"
     if [[ -f "${dest}" ]]; then
         echo "[跳过] ${model} 已存在"
-    else
-        echo "[下载] ${model} ..."
-        download_file "${BASE_URL}/${model}" "${dest}"
+        continue
+    fi
+
+    # 策略1: 从本地 cfg/ 复制（训练产出的模型）
+    src="${CFG_DIR}/${model}"
+    if [[ -f "${src}" ]]; then
+        echo "[复制] ${model} (从 cfg/)"
+        cp "${src}" "${dest}"
+        continue
+    fi
+
+    # 策略2: 从 GitHub Release 下载
+    echo "[下载] ${model} ..."
+    if download_file "${BASE_URL}/${model}" "${dest}"; then
         echo "[完成] ${model}"
+    else
+        echo "[失败] ${model} 下载失败"
+        all_ok=false
     fi
 done
 
 echo "=========================================="
-echo "  所有模型下载完成"
+if ${all_ok}; then
+    echo "  所有模型就绪"
+else
+    echo "  部分模型缺失，请检查上方错误信息"
+    echo "  手动下载地址: ${BASE_URL}"
+fi
 echo "  存放目录: ${WEIGHTS_DIR}"
 echo "=========================================="
