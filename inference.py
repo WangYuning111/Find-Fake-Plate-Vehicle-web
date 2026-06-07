@@ -513,8 +513,14 @@ def predict_single(img_path, save_result_path=None):
 
         # 5. 品牌（从 YOLO 检测类别 + 后处理修正）
         raw_brand = best_det['class_name']
-        brand = correct_brand(raw_brand, vehicle_type=v_type, vehicle_color=v_color)
         brand_conf = best_det['confidence']
+        
+        # 如果YOLO置信度太低或是模糊类别，标记为未知
+        if brand_conf < 0.3 or raw_brand in ['其他', '黄牌大巴', '黄牌卡车', '公交车']:
+            brand = '未知'
+            brand_conf = 0.0
+        else:
+            brand = correct_brand(raw_brand, vehicle_type=v_type, vehicle_color=v_color)
 
         # 6. 车牌识别
         try:
