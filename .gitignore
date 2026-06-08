@@ -4,6 +4,9 @@ __pycache__/
 *$py.class
 *.so
 .Python
+venv/
+env/
+.venv/
 
 # 日志文件
 *.log
@@ -13,12 +16,16 @@ server_output.log
 .vscode/
 .idea/
 *.swp
+*.swo
 
 # 系统文件
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# 上传的测试图片（运行时生成）
+# 运行时生成的图片（不上传）
+static/uploads/
+static/results/
 static/images/*.jpg
 static/images/*.png
 static/images/*.bmp
@@ -26,7 +33,23 @@ test.jpg
 test_blue.jpg
 test_red.jpg
 
-# 模型权重文件（大文件，不推送到Git）
+# 数据集图片（大文件，不上传）
+images/
+data/feedback_images/
+data/*.db
+data/*.csv
+data/*.tmp
+
+# 模型权重文件（大文件，不推送到Git，请从Release下载）
 *.pth
 *.pt
 *.onnx
+weights/
+
+# 临时脚本（训练/标注过程中的临时文件）
+fix_others*.py
+auto_label_*.py
+test_brand*.py
+
+# CodeBuddy 工作目录
+.codebuddy/
