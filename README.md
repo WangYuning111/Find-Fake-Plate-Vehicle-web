@@ -216,3 +216,157 @@ docker-compose up -d
 ## 许可证
 
 MIT
+
+---
+
+# Fake Plate Vehicle Detection System (Web) V1.0
+
+## 1. Project Introduction
+
+This project is a deep learning-based web system for detecting fake/counterfeit license plate vehicles. It integrates vehicle detection, license plate localization, character recognition, vehicle type classification, color recognition, and information comparison logic to achieve intelligent vehicle license plate recognition and fake plate anomaly detection. Users can upload vehicle images through the web interface; the system automatically performs vehicle localization, license plate extraction, character recognition, vehicle type and color classification, and finally compares the results with the registered database to output recognition results and fake plate risk assessments. The project features complete frontend interaction and backend inference capabilities.
+
+## 2. Tech Stack
+
+- **Frontend**: HTML, CSS, JavaScript for page layout, image upload, result display, history query, and vehicle database management.
+- **Backend**: Python (Flask) for RESTful service interfaces, handling frontend requests, calling recognition algorithms, and database operations.
+- **Core Algorithms**:
+  - YOLO-based vehicle detection for precise localization of vehicles and license plates.
+  - HyperLPR + multi-level image enhancement for license plate OCR.
+  - MiniVGGNet-based vehicle type (4 classes) and color (8 colors) classification.
+  - HSV color space-based intelligent color classification optimization.
+- **Database**: SQLite for persistent storage of vehicle registration info, recognition history, and feedback data.
+- **Deployment**: Local server deployment (Docker supported).
+
+## 3. Core Features
+
+- Image upload and preview
+- Vehicle and license plate detection and localization
+- License plate OCR recognition
+- Vehicle type and color classification
+- Fake plate detection and risk warning
+- Result visualization
+- History record management
+- Vehicle database CRUD and CSV batch import
+- Batch analysis for multiple images
+
+## 4. Environment & Usage
+
+### Requirements
+
+- Python 3.8+
+- Windows / macOS / Linux
+- CPU inference supported, NVIDIA GPU recommended
+
+### Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### Model Download (Required for First Run)
+
+Model weight files (~200MB) are not included in the source repository. Download before first run:
+
+**Option 1: One-click Script (Recommended)**
+
+```bash
+# Linux / macOS / Git Bash
+bash download_model.sh
+
+# Windows
+python download_models.py
+```
+
+**Option 2: Manual Download**
+
+Download the following files from [GitHub Release v1.0.0](https://github.com/WangYuning111/Find-Fake-Plate-Vehicle-web/releases/tag/v1.0.0) to the `weights/` directory:
+
+| File | Description | Size |
+|------|-------------|------|
+| `best.pt` | YOLO vehicle detection model | ~15MB |
+| `vehicle_type.pth` | Vehicle type model (4 classes) | ~80MB |
+| `vehicle_color.pth` | Vehicle color model (8 colors) | ~80MB |
+| `vehicle_brand_resnet18.pth` | Vehicle brand model (26 brands) | ~44MB |
+
+> If model files already exist locally under `cfg/`, copy them to `weights/`:
+> ```bash
+> cp cfg/*.pth cfg/*.pt weights/
+> ```
+
+### Start Server
+
+```bash
+python app.py
+```
+
+Visit http://localhost:8090 to upload images for fake plate detection.
+
+### Docker Deployment (Optional)
+
+```bash
+docker-compose up -d
+```
+
+## 5. Development Team
+
+### Lead Developer: Wang Yuning
+
+- Overall system architecture and planning
+- Backend Flask service, RESTful API, and frontend-backend integration
+- YOLO vehicle detection and HyperLPR OCR integration
+- MiniVGGNet model training, data augmentation, and optimization
+- Fake plate detection core logic and brand database comparison
+- HSV color classification optimization
+- SQLite database design and feedback loop system
+
+### Co-Developer: Su Puhang
+
+- Frontend page layout, CSS styling, and JavaScript interaction
+- Image upload, preview, result display, and history pagination
+- Vehicle image data collection, organization, and annotation
+- AI model training data preprocessing and dataset splitting
+- Functional testing, bug fixing, and compatibility adjustments
+- Project documentation, screenshots, and operation instructions
+
+## 6. Project Structure
+
+```
+.
+├── app.py                  # Flask app entry
+├── config.py               # Configuration management
+├── database.py             # SQLite database operations
+├── inference.py            # Model inference wrapper
+├── color_classifier.py     # HSV color classification
+├── improve_accuracy.py     # Image enhancement and optimization
+├── feedback_db.py          # Feedback data management
+├── train_all.py            # Model training script
+├── download_model.sh       # One-click model download
+├── upload_release.py       # GitHub Release auto-upload script
+├── weights/                # Model weight directory
+├── cfg/                    # Trained model weights backup
+├── data/                   # SQLite database
+├── static/                 # CSS/JS/image assets
+├── templates/              # HTML templates
+└── datasets/               # Training datasets
+```
+
+## 7. Iteration Highlights
+
+The project was developed through iterative phases with complete development traces via Git commits:
+
+1. Project initialization and Flask skeleton setup
+2. Frontend page development (upload, result display)
+3. Backend API for image upload, detection, and OCR
+4. Algorithm integration (YOLO, HyperLPR, type/color classification)
+5. Fake plate detection logic and brand database comparison
+6. SQLite database and vehicle library management
+7. UI optimization and responsive adaptation
+8. Algorithm accuracy optimization (HSV thresholds, brand alias mapping)
+9. Training pipeline construction (augmentation, label smoothing, early stopping)
+10. Model weight separation, Release publishing, and download scripts
+11. Bug fixes for black vehicle misclassification, brand false positives, etc.
+12. **Brand label cleaning (Round 1~13)**: Systematically reviewed and corrected ~200+ mislabeled samples, reducing "Others" ratio from 63.5% to ~21.4%. Final training validation accuracy reached 89.7%, with 98.0% average correct rate in 10 random tests.
+
+## License
+
+MIT
