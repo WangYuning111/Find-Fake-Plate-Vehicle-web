@@ -25,14 +25,21 @@ torch.manual_seed(42)
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"使用设备: {DEVICE}")
 
-# 标准品牌列表
-BRANDS = [
-    '大众', '别克', '福特', '东风', '长安', '日产', '现代', '一汽', '江淮', '金杯',
-    '福田', '江铃', '哈飞', '雪铁龙', '中华', '雪佛兰', '奥迪', '长城', '标致',
-    '马自达', '铃木', '五菱', '海马', '宝马', '荣威', '比亚迪', '奇瑞', '本田', '丰田', '起亚', '奔驰', '其他'
-]
+def get_brands():
+    """动态从 brand_labels.csv 读取所有品牌"""
+    brands = set()
+    with open('brand_labels.csv', 'r', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            brands.add(row['brand'])
+    # 确保'其他'在最后
+    brands = sorted(brands - {'其他'}) + ['其他']
+    return brands
+
+BRANDS = get_brands()
 BRAND_TO_ID = {brand: i for i, brand in enumerate(BRANDS)}
 NUM_CLASSES = len(BRANDS)
+print(f"品牌类别: {NUM_CLASSES}, 列表: {BRANDS}")
 
 
 def load_labels():
@@ -113,8 +120,8 @@ def train_model():
     train_dataset = BrandDataset(train_data, transform=train_transform)
     val_dataset = BrandDataset(val_data, transform=val_transform)
 
-    train_loader = DataLoader(train_dataset, batch_size=4, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=4, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=8, shuffle=False)
 
     # 使用预训练的ResNet18（小数据集用小的网络）
     model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
